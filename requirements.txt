@@ -1,1 +1,4 @@
 Flask
+redis
+dotenv
+gunicorn
