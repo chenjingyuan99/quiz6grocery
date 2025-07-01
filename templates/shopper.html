@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Shopper: {{ shopper_name }}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <div class="container">
+        <h1>Welcome {{ shopper_name }} ({{ shopper_id }})</h1>
+        
+        <div class="section">
+            <h2>Store Inventory</h2>
+            <div id="inventory"></div>
+        </div>
+        
+        <div class="section">
+            <h2>Get Item from Store (1 Item Per Time)</h2>
+            <input type="text" id="getItem" placeholder="Enter item name">
+            <button onclick="getItem()">Get Item (G)</button>
+            <div id="getMessage"></div>
+        </div>
+        
+        <div class="section">
+            <h2>Your Cart</h2>
+            <div id="cart"></div>
+        </div>
+        
+        <div class="section">
+            <h2>Return Item to Store (1 Item Per Time)</h2>
+            <input type="text" id="returnItem" placeholder="Enter item name">
+            <button onclick="returnItem()">Return Item (R)</button>
+            <div id="returnMessage"></div>
+        </div>
+        
+        <div class="section">
+            <button onclick="window.location.href='/'">Back to Main</button>
+        </div>
+    </div>
+
+    <script>
+        const shopperId = "{{ shopper_id }}";
+        
+        function loadInventory() {
+            fetch('/api/inventory')
+            .then(response => response.json())
+            .then(data => {
+                const inventoryDiv = document.getElementById('inventory');
+                if (data.inventory.length === 0) {
+                    inventoryDiv.innerHTML = '<p>No items in store</p>';
+                } else {
+                    inventoryDiv.innerHTML = '<p>Available: ' + data.inventory.join(', ') + 
+                                           ` (${data.count}/${data.max})</p>`;
+                }
+            });
+        }
+        
+        function loadCart() {
+            fetch(`/api/shopper/${shopperId}/cart`)
+            .then(response => response.json())
+            .then(data => {
+                const cartDiv = document.getElementById('cart');
+                if (data.cart.length === 0) {
+                    cartDiv.innerHTML = '<p>Your cart is empty</p>';
+                } else {
+                    cartDiv.innerHTML = '<p>In your cart: ' + data.cart.join(', ') + '</p>';
+                }
+            });
+        }
+        
+        function getItem() {
+            const item = document.getElementById('getItem').value.trim();
+            if (!item) {
+                alert('Please enter an item name');
+                return;
+            }
+            
+            fetch(`/api/shopper/${shopperId}/get_item`, {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({item: item})
+            })
+            .then(response => response.json())
+            .then(data => {
+                const messageDiv = document.getElementById('getMessage');
+                if (data.error) {
+                    messageDiv.innerHTML = `<p style="color: red;">${data.error}</p>`;
+                } else {
+                    messageDiv.innerHTML = `<p style="color: green;">Got ${item}!</p>`;
+                    document.getElementById('getItem').value = '';
+                    loadInventory();
+                    loadCart();
+                }
+            });
+        }
+        
+        function returnItem() {
+            const item = document.getElementById('returnItem').value.trim();
+            if (!item) {
+                alert('Please enter an item name');
+                return;
+            }
+            
+            fetch(`/api/shopper/${shopperId}/return_item`, {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({item: item})
+            })
+            .then(response => response.json())
+            .then(data => {
+                const messageDiv = document.getElementById('returnMessage');
+                if (data.error) {
+                    messageDiv.innerHTML = `<p style="color: red;">${data.error}</p>`;
+                } else {
+                    messageDiv.innerHTML = `<p style="color: green;">Returned ${item}!</p>`;
+                    document.getElementById('returnItem').value = '';
+                    loadInventory();
+                    loadCart();
+                }
+            });
+        }
+        
+        // Load data on page load
+        loadInventory();
+        loadCart();
+        
+        // Refresh every 2 seconds
+        setInterval(() => {
+            loadInventory();
+            loadCart();
+        }, 2000);
+    </script>
+</body>
+</html>

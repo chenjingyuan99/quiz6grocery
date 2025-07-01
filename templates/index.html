@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Virtual Grocery Store</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <div class="container">
+        <h1>Virtual Grocery Store</h1>
+        
+        <div class="section">
+            <h2>Register as Shopper</h2>
+            <input type="text" id="shopperName" placeholder="Enter your name" maxlength="20">
+            <button onclick="registerShopper()">Join Store</button>
+            <div id="shopperResult"></div>
+        </div>
+        
+        <div class="section">
+            <h2>Enter as Stocker</h2>
+            <button onclick="window.location.href='/grocer'">Grocery Stocker (GS)</button>
+        </div>
+        
+        <div class="section">
+            <h2>Current Shoppers</h2>
+            <div id="currentShoppers"></div>
+        </div>
+    </div>
+
+    <script>
+        function registerShopper() {
+            const name = document.getElementById('shopperName').value.trim();
+            if (!name) {
+                alert('Please enter your name');
+                return;
+            }
+            
+            fetch('/api/register_shopper', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({name: name})
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.error) {
+                    document.getElementById('shopperResult').innerHTML = 
+                        `<p style="color: red;">Error: ${data.error}</p>`;
+                } else {
+                    document.getElementById('shopperResult').innerHTML = 
+                        `<p style="color: green;">Welcome ${data.name}! 
+                         <a href="/shopper/${data.shopper_id}">Enter Store</a></p>`;
+                    loadShoppers();
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+            });
+        }
+        
+        function loadShoppers() {
+            fetch('/api/shoppers')
+            .then(response => response.json())
+            .then(data => {
+                const shoppersDiv = document.getElementById('currentShoppers');
+                let html = '';
+                for (const [id, shopper] of Object.entries(data.shoppers)) {
+                    html += `<p>${shopper.name} (${id}) - 
+                             <a href="/shopper/${id}">Enter Store</a></p>`;
+                }
+                shoppersDiv.innerHTML = html || '<p>No shoppers registered</p>';
+            });
+        }
+        
+        // Load shoppers on page load
+        loadShoppers();
+    </script>
+</body>
+</html>

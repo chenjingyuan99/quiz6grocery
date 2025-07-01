@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Grocery Stocker (GS)</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <div class="container">
+        <h1>Grocery Stocker (GS)</h1>
+        
+        <div class="section">
+            <h2>Put Item in Store (1 Item Per Time)</h2>
+            <input type="text" id="putItem" placeholder="Enter item name">
+            <button onclick="putItem()">Put Item (P)</button>
+            <button onclick="emptyInventory()" style="background-color: #dc3545;">Empty All Inventory</button>
+            <div id="putMessage"></div>
+        </div>
+        
+        <div class="section">
+            <h2>Store Inventory (I)</h2>
+            <button onclick="loadInventory()">Refresh Inventory</button>
+            <div id="inventory"></div>
+        </div>
+        
+        <div class="section">
+            <h2>Shopper Information</h2>
+            <div id="shoppers"></div>
+        </div>
+        
+        <div class="section">
+            <h2>Transaction History (T)</h2>
+            <button onclick="loadTransactions()">Show Transactions</button>
+            <div id="transactions"></div>
+        </div>
+        
+        <div class="section">
+            <button onclick="window.location.href='/'">Back to Main</button>
+        </div>
+    </div>
+
+    <script>
+        function putItem() {
+            const item = document.getElementById('putItem').value.trim();
+            if (!item) {
+                alert('Please enter an item name');
+                return;
+            }
+            
+            fetch('/api/grocer/put_item', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({item: item})
+            })
+            .then(response => response.json())
+            .then(data => {
+                const messageDiv = document.getElementById('putMessage');
+                if (data.error) {
+                    messageDiv.innerHTML = `<p style="color: red;">${data.error}</p>`;
+                } else {
+                    messageDiv.innerHTML = `<p style="color: green;">Added ${item} to store!</p>`;
+                    document.getElementById('putItem').value = '';
+                    loadInventory();
+                }
+            });
+        }
+        
+        function loadInventory() {
+            fetch('/api/inventory')
+            .then(response => response.json())
+            .then(data => {
+                const inventoryDiv = document.getElementById('inventory');
+                if (data.inventory.length === 0) {
+                    inventoryDiv.innerHTML = '<p>Store is empty</p>';
+                } else {
+                    inventoryDiv.innerHTML = '<p>Current inventory: ' + data.inventory.join(', ') + 
+                                           ` (${data.count}/${data.max})</p>`;
+                }
+            });
+        }
+        
+        function loadShoppers() {
+            fetch('/api/shoppers')
+            .then(response => response.json())
+            .then(data => {
+                const shoppersDiv = document.getElementById('shoppers');
+                let html = '';
+                for (const [id, shopper] of Object.entries(data.shoppers)) {
+                    html += `<div class="shopper-info">
+                               <h3>${shopper.name} (${id})</h3>
+                               <p>Cart: ${shopper.cart.length > 0 ? shopper.cart.join(', ') : 'empty'}</p>
+                             </div>`;
+                }
+                shoppersDiv.innerHTML = html || '<p>No shoppers in store</p>';
+            });
+        }
+        
+        function loadTransactions() {
+            fetch('/api/transactions')
+            .then(response => response.json())
+            .then(data => {
+                const transactionsDiv = document.getElementById('transactions');
+                if (data.transactions.length === 0) {
+                    transactionsDiv.innerHTML = '<p>No transactions yet</p>';
+                } else {
+                    let html = '<ol>';
+                    data.transactions.forEach(transaction => {
+                        html += `<li>${transaction}</li>`;
+                    });
+                    html += '</ol>';
+                    transactionsDiv.innerHTML = html;
+                }
+            });
+        }
+        
+        // Load data on page load
+        loadInventory();
+        loadShoppers();
+        loadTransactions();
+        
+        // Refresh every 2 seconds
+        setInterval(() => {
+            loadInventory();
+            loadShoppers();
+            loadTransactions();
+        }, 2000);
+
+        function emptyInventory() {
+            if (!confirm('Are you sure you want to empty all inventory? This cannot be undone.')) {
+                return;
+            }
+            
+            fetch('/api/grocer/empty_inventory', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'}
+            })
+            .then(response => response.json())
+            .then(data => {
+                const messageDiv = document.getElementById('putMessage');
+                if (data.error) {
+                    messageDiv.innerHTML = `<p style="color: red;">${data.error}</p>`;
+                } else {
+                    messageDiv.innerHTML = `<p style="color: green;">${data.message}</p>`;
+                    loadInventory();
+                    loadTransactions();
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                document.getElementById('putMessage').innerHTML = 
+                    '<p style="color: red;">Error emptying inventory</p>';
+            });
+        }
+
+    </script>
+</body>
+</html>
